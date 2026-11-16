@@ -57,12 +57,10 @@ const who=uid=>uid===AH?'Ahmet':uid===SA?'Saziye':'Aile üyesi';
 const appLink='https://ahmetyildirim-tr.github.io/AlGel/';
 function listMessage(){const items=state.items.filter(i=>!i.done);return '🛍️ AlGel alışveriş listesi\n'+(items.length?items.map(i=>'• '+i.name+(i.quantity?' — '+i.quantity+' '+(i.unit||'adet'):'')).join('\n'):'Liste şu anda boş.')+'\n\n'+appLink}
 const reminderText=(type,note)=>type==='ready'?`🛍️ İstediğin liste hazır!\n${listMessage()}`:`🛍️ AlGel: Bana alışveriş listesi hazırlar mısın? ${note||''}\n${appLink}`;
-async function whatsapp(text){
- // iOS Safari and installed PWAs reliably support the native share sheet
- // when invoked directly by a tap; the user chooses WhatsApp and recipient.
- if(navigator.share){try{await navigator.share({text});return}catch(e){if(e.name==='AbortError')return;console.warn('Share unavailable',e)}}
- try{await navigator.clipboard.writeText(text);message('reminderMessage','Mesaj kopyalandı. WhatsApp açılınca konuşmaya yapıştırın.')}catch(e){message('reminderMessage','WhatsApp mesajı açılamadı; aşağıdaki yeniden gönder düğmesini kullanın.')}
- window.location.href='whatsapp://send?text='+encodeURIComponent(text);
+function whatsapp(text){
+ // Direct app deep link, without Safari's wa.me intermediary.
+ const url='whatsapp://send?text='+encodeURIComponent(text);
+ window.location.href=url;
 }
 
 
