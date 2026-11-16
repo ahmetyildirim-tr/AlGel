@@ -11,9 +11,9 @@
 <label>Alıcı<select id="reminderRecipient"><option value="69XsPeLgc9hlUH6UMgZMUxMv9up2">Saziye</option><option value="S0c4ZBH285duqGh0U5gA5tVVweY2">Ahmet</option></select></label>
 <label>Not (isteğe bağlı)<input id="reminderNote" maxlength="200" placeholder="İşten çıkmadan listeyi hazırlar mısın?"></label>
 <input id="reminderMode" type="hidden" value="now">
-<div class="row"><button id="reminderSend" class="grow">Liste oluştur iste</button><button id="reminderWhatsapp" class="subtle grow">WhatsApp'ta aç</button></div>
+<div class="row"><button id="reminderSend" class="grow">Liste oluştur iste</button></div>
 <p id="reminderMessage" class="muted" role="status"></p><h3>Gelen ve gönderilen istekler</h3><div id="reminderList"></div>
-<p class="muted">WhatsApp mesajını açtıktan sonra Gönder’e basın.</p>
+<p class="muted">İsteği kaydedin, ardından isteğin altındaki WhatsApp düğmesiyle gönderin. Liste hazır olduğunda da aynı şekilde haber verin.</p>
 </div>
 
 <div class="panel"><h2>Aile ve bildirimler</h2><p class="muted">Yeni kullanıcı eklemek için Firebase Authentication'da hesabı oluşturun, ardından UID'sini aşağıya ekleyin. Bu işlem yalnızca aile yöneticisine açıktır.</p><div id="memberAdmin" hidden><form id="memberForm" class="row"><input id="memberUid" class="grow" placeholder="Yeni kullanıcının Firebase UID'si" required><button>Üye ekle</button></form><div id="members"></div></div><p id="memberMessage" class="muted"></p></div>
