@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isOwner() { return signedIn() && request.auth.uid == 'S0c4ZBH285duqGh0U5gA5tVVweY2'; }
+    function isBootstrap() {
+      return signedIn() && request.auth.uid in [
+        'S0c4ZBH285duqGh0U5gA5tVVweY2',
+        '69XsPeLgc9hlUH6UMgZMUxMv9up2'
+      ];
+    }
+    function isMember() {
+      return isBootstrap() || (signedIn() && exists(/databases/$(database)/documents/shoppingLists/family/members/$(request.auth.uid)));
+    }
+    match /shoppingLists/family {
+      allow read, write: if isMember();
+      // v1.0 ürünleri aynen burada kalır.
+      match /items/{itemId} {
+        allow read, write: if isMember();
+      }
+      // Üyelik yetkisini yalnızca yönetici değiştirebilir.
+      match /members/{uid} {
+        allow get: if isOwner() || (signedIn() && request.auth.uid == uid);
+        allow list: if isOwner();
+        allow create, update, delete: if isOwner();
+      }
+      // Ek listeler ve bu listelerin ürünleri.
+      match /listMeta/{listId} {
+        allow read, create, update, delete: if isMember();
+        match /items/{itemId} {
+          allow read, write: if isMember();
+        }
+      }
+    }
+  }
+}
