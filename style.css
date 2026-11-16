@@ -5,3 +5,6 @@
 .catalog-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}.catalog-row strong{flex:1}.catalog-row input[type=checkbox]{width:22px;margin:0}.catalog-row input[type=number]{width:65px;margin:0;padding:7px}#catalogProducts{max-height:350px;overflow:auto;margin:12px 0}details summary{cursor:pointer;font-weight:700}
 
 .qty-counter{display:flex;align-items:center;gap:7px;white-space:nowrap}.qty-counter button{width:34px;height:34px;padding:0;font-size:22px}.qty-counter span{min-width:20px;text-align:center;font-weight:700}.catalog-row strong{min-width:0;overflow-wrap:anywhere}.catalog-row small{font-size:11px;color:var(--muted)}
+
+/* v2.8 compact mobile shopping layout */
+.catalog-row{gap:6px;padding:7px 0;font-size:13px}.catalog-row strong{font-size:13px;font-weight:650}.catalog-row small{font-size:11px;min-width:30px;text-align:right}.qty-counter{gap:4px}.qty-counter button{width:30px;height:30px;font-size:19px}.qty-counter span{font-size:13px;min-width:16px}.item{padding:9px 0;gap:7px}.itemmain strong{font-size:13px;font-weight:650}.itemmain small{font-size:10px}.item-quantity{font-size:12px;font-weight:500;color:var(--muted)}.item button{font-size:11px;padding:6px 7px}#reminderList .reminder{padding:10px 0}#reminderList .reminder strong{font-size:14px}#reminderList .reminder small{font-size:12px}
