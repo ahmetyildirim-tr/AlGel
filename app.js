@@ -60,7 +60,6 @@ const reminderText=(type,note)=>type==='ready'?`🛍️ İstediğin liste hazır
 function whatsapp(text){window.location.href='https://wa.me/?text='+encodeURIComponent(text)}
 
 
-$('reminderRecipient').value=state.user?.uid===AH?SA:AH;
 $('reminderSend').onclick=async()=>{
  if(!state.user)return;
  const to=state.user.uid===AH?SA:AH;
