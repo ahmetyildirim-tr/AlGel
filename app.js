@@ -1,16 +1,16 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js';
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js';
-import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,getDoc,setDoc,onSnapshot,addDoc,updateDoc,deleteDoc,serverTimestamp,Timestamp,query,orderBy,limit} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,getDoc,getDocsFromServer,setDoc,onSnapshot,addDoc,updateDoc,deleteDoc,serverTimestamp,Timestamp,query,orderBy,limit} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 const firebaseConfig={apiKey:'AIzaSyClAjzLsBmIaISpzVKvS_tLQQGSF_8ALGg',authDomain:'asem-algel.firebaseapp.com',projectId:'asem-algel',storageBucket:'asem-algel.firebasestorage.app',messagingSenderId:'273464507861',appId:'1:273464507861:web:6bbf2068f69dba5466d15c'};
 const OWNER='S0c4ZBH285duqGh0U5gA5tVVweY2';
 const BOOTSTRAP=[OWNER,'69XsPeLgc9hlUH6UMgZMUxMv9up2'];
 const app=initializeApp(firebaseConfig),auth=getAuth(app);
 let db;try{db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})})}catch(e){console.warn('Offline cache:',e);db=initializeFirestore(app,{})}
-const $=id=>document.getElementById(id);const state={catalog:[],draft:new Map(),user:null,list:'family',lists:[],items:[],tab:'active',unsubs:[],ready:false,seen:new Set(),firstSnapshot:true};
+const $=id=>document.getElementById(id);const state={refreshing:false,catalog:[],draft:new Map(),user:null,list:'family',lists:[],items:[],tab:'active',unsubs:[],ready:false,seen:new Set(),firstSnapshot:true};
 const money=n=>new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY'}).format(n||0);
 const clean=s=>(s||'').toString().trim();const num=s=>{const n=Number(s);return Number.isFinite(n)?n:0};
 function message(id,text){$(id).textContent=text}
-function resetListeners(){state.unsubs.forEach(fn=>fn());state.itemUnsub=null;state.unsubs=[];state.items=[];state.lists=[];state.ready=false;state.seen.clear();state.firstSnapshot=true;state.catalog=[];state.draft.clear();state.user=null}
+function resetListeners(){state.unsubs.forEach(fn=>fn());state.itemUnsub=null;state.unsubs=[];state.items=[];state.lists=[];state.ready=false;state.seen.clear();state.firstSnapshot=true;state.catalog=[];state.draft.clear();state.user=null;state.refreshing=false}
 function permitted(user){return user&&(BOOTSTRAP.includes(user.uid)||state.memberIds?.has(user.uid))}
 $('loginForm').onsubmit=async e=>{e.preventDefault();message('loginError','');try{await signInWithEmailAndPassword(auth,clean($('email').value),$('password').value)}catch(e){message('loginError','Giriş başarısız: e-posta veya şifreyi kontrol edin.')}};
 $('logout').onclick=()=>signOut(auth);
@@ -21,9 +21,11 @@ state.memberIds=new Set(BOOTSTRAP);
 const memberRef=collection(db,'shoppingLists','family','members');
 subscribeReminders();state.unsubs.push(onSnapshot(doc(db,'shoppingLists','family'),s=>{state.catalog=Array.isArray(s.data()?.catalog)?s.data().catalog:[];renderCatalog()},e=>message('catalogMessage',e.code)));state.unsubs.push(onSnapshot(memberRef,snap=>{state.memberIds=new Set([...BOOTSTRAP,...snap.docs.map(d=>d.id)]);if(user.uid===OWNER)renderMembers(snap.docs)},err=>message('memberMessage','Üyeler okunamadı: '+err.code)));
 state.unsubs.push(onSnapshot(collection(db,'shoppingLists','family','listMeta'),snap=>{state.lists=[{id:'family',name:'Ortak aile listesi'},...snap.docs.map(d=>({id:d.id,...d.data()}))];if(state.list!=='family'&&!state.lists.some(l=>l.id===state.list))state.list='family';renderLists()},err=>message('listInfo','Listeler yüklenemedi: '+err.code)));
-subscribeItems();}
+subscribeItems();setTimeout(()=>refreshItemsFromServer(),1500)}
 function renderLists(){const sel=$('listSelect');sel.replaceChildren();for(const l of state.lists){const opt=new Option(l.name||l.id,l.id);sel.add(opt)}sel.value=state.list}
 function itemPath(){return state.list==='family'?collection(db,'shoppingLists','family','items'):collection(db,'shoppingLists','family','listMeta',state.list,'items')}
+async function refreshItemsFromServer(){if(!state.user||state.refreshing||document.visibilityState==='hidden')return;state.refreshing=true;try{const selectedList=state.list;const snap=await getDocsFromServer(itemPath());if(selectedList!==state.list)return;state.items=snap.docs.map(d=>({id:d.id,...d.data()}));state.seen=new Set(state.items.map(i=>i.id));renderItems();renderCatalog();message('syncStatus','✓ Sunucuyla güncellendi')}catch(e){message('syncStatus','Bağlantı kontrol ediliyor · '+(e.code||'ağ hatası'))}finally{state.refreshing=false}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshItemsFromServer()});window.addEventListener('focus',()=>refreshItemsFromServer());window.addEventListener('online',()=>refreshItemsFromServer());setInterval(()=>{if(document.visibilityState==='visible'&&state.user)refreshItemsFromServer()},20000);
 function subscribeItems(){if(state.itemUnsub){state.itemUnsub();state.unsubs=state.unsubs.filter(f=>f!==state.itemUnsub)}state.items=[];state.firstSnapshot=true;state.seen.clear();message('syncStatus','Liste yükleniyor…');state.itemUnsub=onSnapshot(itemPath(),{includeMetadataChanges:true},snap=>{const incoming=snap.docs.map(d=>({id:d.id,...d.data()}));if(!state.firstSnapshot&&document.visibilityState==='visible'&&'Notification' in window&&Notification.permission==='granted'){for(const change of snap.docChanges()){const item={id:change.doc.id,...change.doc.data()};if(change.type==='added'&&!change.doc.metadata.hasPendingWrites&&item.createdBy!==state.user.uid&&!state.seen.has(item.id)){new Notification('AlGel: Yeni ürün',{body:item.name||'Liste güncellendi',icon:'./icon-192.png'})}}}state.firstSnapshot=false;state.seen=new Set(incoming.map(i=>i.id));state.items=incoming;renderCatalog();message('syncStatus',snap.metadata.fromCache?'📴 Önbellekten gösteriliyor':'✓ Anlık senkronize');renderItems();},err=>message('syncStatus','Liste açılamadı: '+err.code+' — Firestore kurallarını kontrol edin.'));state.unsubs.push(state.itemUnsub)}
 $('listSelect').onchange=e=>{state.list=e.target.value;subscribeItems()};
 $('newListBtn').onclick=async()=>{const name=clean(prompt('Yeni liste adı (ör. Tatil alışverişi):'));if(!name)return;if(name.length>60)return alert('Liste adı en fazla 60 karakter olabilir.');try{const ref=await addDoc(collection(db,'shoppingLists','family','listMeta'),{name,createdBy:state.user.uid,createdAt:serverTimestamp()});state.list=ref.id;renderLists();subscribeItems()}catch(e){alert('Liste oluşturulamadı: '+e.code)}};
@@ -53,20 +55,22 @@ const REMINDERS=collection(db,'shoppingLists','family','reminders');
 const AH='S0c4ZBH285duqGh0U5gA5tVVweY2', SA='69XsPeLgc9hlUH6UMgZMUxMv9up2';
 const who=uid=>uid===AH?'Ahmet':uid===SA?'Saziye':'Aile üyesi';
 const appLink='https://ahmetyildirim-tr.github.io/AlGel/';
-const reminderText=(type,note,kind='prepare')=>type==='ready'?(kind==='buy'?`🛍️ AlGel: Alışverişi ben yapacağım. ${appLink}`:`🛍️ AlGel: Listeyi hazırladım! ${appLink}`):(kind==='buy'?`🛍️ AlGel: Bu listedeki ürünleri alır mısın? ${note||''} ${appLink}`:`🛍️ AlGel: Alışveriş listesini oluşturur musun? ${note||''} ${appLink}`);
+function listMessage(){const items=state.items.filter(i=>!i.done);return '🛍️ AlGel alışveriş listesi\n'+(items.length?items.map(i=>'• '+i.name+(i.quantity?' — '+i.quantity+' '+(i.unit||'adet'):'')).join('\n'):'Liste şu anda boş.')+'\n\n'+appLink}
+const reminderText=(type,note)=>type==='ready'?`🛍️ İstediğin liste hazır!\n${listMessage()}`:`🛍️ AlGel: Bana alışveriş listesi hazırlar mısın? ${note||''}\n${appLink}`;
 function whatsapp(text){window.location.href='https://wa.me/?text='+encodeURIComponent(text)}
 
 
+$('reminderRecipient').value=state.user?.uid===AH?SA:AH;
 $('reminderSend').onclick=async()=>{
-  if(!state.user)return;
-  const to=$('reminderRecipient').value;const kind=$('reminderKind').value;
-  if(to===state.user.uid)return message('reminderMessage','Alıcı olarak diğer aile üyesini seçin.');
-  const later=false;let when=null;
-  
-  $('reminderSend').disabled=true;
-  try{await addDoc(REMINDERS,{type:'request',kind,fromUid:state.user.uid,toUid:to,note:clean($('reminderNote').value),status:later?'scheduled':'requested',scheduledAt:when,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage','İstek kaydedildi. WhatsApp mesajı için WhatsApp’ta aç butonuna basın.');}
-  catch(e){message('reminderMessage','Hatırlatma kaydedilemedi: '+(e.code||e.message))}finally{$('reminderSend').disabled=false}
+ if(!state.user)return;
+ const to=state.user.uid===AH?SA:AH;
+ const note=clean($('reminderNote').value);
+ $('reminderSend').disabled=true;
+ try{await addDoc(REMINDERS,{type:'request',kind:'prepare',fromUid:state.user.uid,toUid:to,note,status:'requested',scheduledAt:null,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage','Liste isteği kaydedildi. WhatsApp açılıyor.');whatsapp(reminderText('request',note))}
+ catch(e){message('reminderMessage','İstek kaydedilemedi: '+(e.code||e.message))}
+ finally{$('reminderSend').disabled=false}
 };
+$('reminderShare').onclick=()=>{if(!state.user)return;whatsapp(listMessage())};
 let remindersFirst=true,reminderSeen=new Map();
 function subscribeReminders(){remindersFirst=true;reminderSeen.clear();const q=query(REMINDERS,orderBy('createdAt','desc'),limit(80));state.unsubs.push(onSnapshot(q,snap=>{
   const all=snap.docs.map(d=>({id:d.id,...d.data()}));renderReminders(all);
@@ -79,7 +83,7 @@ function subscribeReminders(){remindersFirst=true;reminderSeen.clear();const q=q
 function notifyInApp(title,body){message('reminderMessage',title+' — '+body);if('Notification'in window&&Notification.permission==='granted')try{new Notification('AlGel · '+title,{body,icon:'./icon-192.png'})}catch(e){console.warn(e)}}
 function renderReminders(all){const root=$('reminderList');root.replaceChildren();const visible=all.filter(r=>r.fromUid===state.user.uid||r.toUid===state.user.uid);if(!visible.length){const p=document.createElement('p');p.className='muted';p.textContent='Henüz hatırlatma yok.';root.append(p);return}
 for(const r of visible){const wrap=document.createElement('div');wrap.className='reminder';const heading=document.createElement('strong');heading.textContent=(r.fromUid===state.user.uid?'Gönderilen → '+who(r.toUid):'Gelen ← '+who(r.fromUid));const info=document.createElement('small');const kind=r.kind||'prepare';const date=r.scheduledAt?.toDate?.();info.textContent=({scheduled:'⏳ Planlandı',requested:kind==='buy'?'🛒 Alışveriş isteği':'🔔 Liste oluşturma isteği',ready:kind==='buy'?'✅ Alışveriş kabul edildi':'✅ Liste hazır',cancelled:'İptal edildi'}[r.status]||r.status)+(date?' · '+date.toLocaleString('tr-TR'):'')+(r.note?' · '+r.note:'');const actions=document.createElement('div');actions.className='row';
-if(r.toUid===state.user.uid&&r.status==='requested'){const ready=document.createElement('button');ready.textContent=kind==='buy'?'✓ Alışverişi yapacağım':'✓ Listeyi hazırladım';ready.onclick=async()=>{ready.disabled=true;try{await updateDoc(doc(REMINDERS,r.id),{status:'ready',readyBy:state.user.uid,readyAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage','Yanıt kaydedildi. WhatsApp açılıyor.');whatsapp(reminderText('ready',r.note,kind))}catch(e){alert('Durum değiştirilemedi: '+e.code)}finally{ready.disabled=false}};actions.append(ready)}
-if((r.status==='requested'&&r.fromUid===state.user.uid)||(r.status==='ready'&&r.toUid===state.user.uid)){const wa=document.createElement('button');wa.className='subtle';wa.textContent=r.status==='ready'?'WhatsApp ile yanıtla':'WhatsApp ile isteği gönder';wa.onclick=()=>whatsapp(reminderText(r.status==='ready'?'ready':'request',r.note,kind));actions.append(wa)}
+if(r.toUid===state.user.uid&&r.status==='requested'){const ready=document.createElement('button');ready.textContent='📤 Liste gönder';ready.onclick=async()=>{ready.disabled=true;try{await updateDoc(doc(REMINDERS,r.id),{status:'ready',readyBy:state.user.uid,readyAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage','Yanıt kaydedildi. WhatsApp açılıyor.');whatsapp(reminderText('ready',r.note))}catch(e){alert('Durum değiştirilemedi: '+e.code)}finally{ready.disabled=false}};actions.append(ready)}
+if((r.status==='requested'&&r.fromUid===state.user.uid)||(r.status==='ready'&&r.toUid===state.user.uid)){const wa=document.createElement('button');wa.className='subtle';wa.textContent=r.status==='ready'?'Listeyi WhatsApp ile gönder':'İsteği WhatsApp ile gönder';wa.onclick=()=>whatsapp(reminderText(r.status==='ready'?'ready':'request',r.note));actions.append(wa)}
 if(r.fromUid===state.user.uid&&r.status==='scheduled'){const cancel=document.createElement('button');cancel.className='subtle';cancel.textContent='İptal et';cancel.onclick=()=>updateDoc(doc(REMINDERS,r.id),{status:'cancelled',updatedAt:serverTimestamp()}).catch(e=>alert(e.code));actions.append(cancel)}wrap.append(heading,info,actions);root.append(wrap)}
 }
