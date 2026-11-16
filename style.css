@@ -8,3 +8,6 @@
 
 /* v2.8 compact mobile shopping layout */
 .catalog-row{gap:6px;padding:7px 0;font-size:13px}.catalog-row strong{font-size:13px;font-weight:650}.catalog-row small{font-size:11px;min-width:30px;text-align:right}.qty-counter{gap:4px}.qty-counter button{width:30px;height:30px;font-size:19px}.qty-counter span{font-size:13px;min-width:16px}.item{padding:9px 0;gap:7px}.itemmain strong{font-size:13px;font-weight:650}.itemmain small{font-size:10px}.item-quantity{font-size:12px;font-weight:500;color:var(--muted)}.item button{font-size:11px;padding:6px 7px}#reminderList .reminder{padding:10px 0}#reminderList .reminder strong{font-size:14px}#reminderList .reminder small{font-size:12px}
+
+/* v2.9 catalog management */
+.catalog-row .catalog-action{padding:7px 8px;font-size:11px;white-space:nowrap}.catalog-row .danger{border:1px solid var(--line)}#catalogManage{font-size:12px;padding:9px 12px;margin:4px 0}#catalogProducts .catalog-row:has(.catalog-action) strong{font-size:13px}
