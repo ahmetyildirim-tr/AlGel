@@ -1,6 +1,6 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js';
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js';
-import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,getDoc,setDoc,onSnapshot,addDoc,updateDoc,deleteDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,getDoc,setDoc,onSnapshot,addDoc,updateDoc,deleteDoc,serverTimestamp,Timestamp,query,orderBy,limit} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
 const firebaseConfig={apiKey:'AIzaSyClAjzLsBmIaISpzVKvS_tLQQGSF_8ALGg',authDomain:'asem-algel.firebaseapp.com',projectId:'asem-algel',storageBucket:'asem-algel.firebasestorage.app',messagingSenderId:'273464507861',appId:'1:273464507861:web:6bbf2068f69dba5466d15c'};
 const OWNER='S0c4ZBH285duqGh0U5gA5tVVweY2';
 const BOOTSTRAP=[OWNER,'69XsPeLgc9hlUH6UMgZMUxMv9up2'];
@@ -10,7 +10,7 @@ const $=id=>document.getElementById(id);const state={user:null,list:'family',lis
 const money=n=>new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY'}).format(n||0);
 const clean=s=>(s||'').toString().trim();const num=s=>{const n=Number(s);return Number.isFinite(n)?n:0};
 function message(id,text){$(id).textContent=text}
-function resetListeners(){state.unsubs.forEach(fn=>fn());state.unsubs=[];state.items=[];state.lists=[];state.ready=false;state.seen.clear();state.firstSnapshot=true}
+function resetListeners(){state.unsubs.forEach(fn=>fn());state.itemUnsub=null;state.unsubs=[];state.items=[];state.lists=[];state.ready=false;state.seen.clear();state.firstSnapshot=true}
 function permitted(user){return user&&(BOOTSTRAP.includes(user.uid)||state.memberIds?.has(user.uid))}
 $('loginForm').onsubmit=async e=>{e.preventDefault();message('loginError','');try{await signInWithEmailAndPassword(auth,clean($('email').value),$('password').value)}catch(e){message('loginError','Giriş başarısız: e-posta veya şifreyi kontrol edin.')}};
 $('logout').onclick=()=>signOut(auth);
@@ -19,7 +19,7 @@ if(localStorage.getItem('algel-theme')==='dark'||(!localStorage.getItem('algel-t
 async function start(user){state.user=user;$('loginView').hidden=true;$('appView').hidden=false;$('userLabel').textContent=user.email||'Aile üyesi';$('memberAdmin').hidden=user.uid!==OWNER;
 state.memberIds=new Set(BOOTSTRAP);
 const memberRef=collection(db,'shoppingLists','family','members');
-state.unsubs.push(onSnapshot(memberRef,snap=>{state.memberIds=new Set([...BOOTSTRAP,...snap.docs.map(d=>d.id)]);if(user.uid===OWNER)renderMembers(snap.docs)},err=>message('memberMessage','Üyeler okunamadı: '+err.code)));
+subscribeReminders();state.unsubs.push(onSnapshot(memberRef,snap=>{state.memberIds=new Set([...BOOTSTRAP,...snap.docs.map(d=>d.id)]);if(user.uid===OWNER)renderMembers(snap.docs)},err=>message('memberMessage','Üyeler okunamadı: '+err.code)));
 state.unsubs.push(onSnapshot(collection(db,'shoppingLists','family','listMeta'),snap=>{state.lists=[{id:'family',name:'Ortak aile listesi'},...snap.docs.map(d=>({id:d.id,...d.data()}))];if(state.list!=='family'&&!state.lists.some(l=>l.id===state.list))state.list='family';renderLists()},err=>message('listInfo','Listeler yüklenemedi: '+err.code)));
 subscribeItems();}
 function renderLists(){const sel=$('listSelect');sel.replaceChildren();for(const l of state.lists){const opt=new Option(l.name||l.id,l.id);sel.add(opt)}sel.value=state.list}
@@ -36,3 +36,54 @@ $('memberForm').onsubmit=async e=>{e.preventDefault();if(state.user.uid!==OWNER)
 function renderMembers(docs){const root=$('members');root.replaceChildren();for(const d of docs){const row=document.createElement('div');row.className='row';const label=document.createElement('small');label.className='grow';label.textContent=d.id;const btn=document.createElement('button');btn.className='danger';btn.textContent='Yetkiyi kaldır';btn.onclick=()=>{if(confirm('Bu kullanıcının erişimini kaldırmak istiyor musunuz?'))deleteDoc(d.ref).catch(e=>alert(e.code))};row.append(label,btn);root.append(row)}}
 onAuthStateChanged(auth,async user=>{resetListeners();$('appView').hidden=true;$('loginView').hidden=false;if(!user)return;try{if(!BOOTSTRAP.includes(user.uid)){const membership=await getDoc(doc(db,'shoppingLists','family','members',user.uid));if(!membership.exists()){message('loginError','Bu hesap aile listesine yetkili değil. Yöneticiye UID bilginizi iletin.');await signOut(auth);return}}await start(user)}catch(err){message('loginError','Yetki kontrolü başarısız: '+err.code)}});
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+
+// v2.2: family reminders. All requests persist in Firestore; client never sends
+// unattended WhatsApp messages. Cloud Functions is required for background delivery.
+const REMINDERS=collection(db,'shoppingLists','family','reminders');
+const AH='S0c4ZBH285duqGh0U5gA5tVVweY2', SA='69XsPeLgc9hlUH6UMgZMUxMv9up2';
+const who=uid=>uid===AH?'Ahmet':uid===SA?'Saziye':'Aile üyesi';
+const appLink='https://ahmetyildirim-tr.github.io/AlGel/';
+const reminderText=(type,note)=>type==='ready'?`🛍️ AlGel: Alışveriş listesi hazır! ${appLink}`:`🛍️ AlGel: Alışveriş listesini hazırlar mısın? ${note||''} ${appLink}`;
+function whatsapp(text){window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer')}
+$('reminderMode').onchange=()=>{$('reminderDateRow').hidden=$('reminderMode').value!=='later'};
+$('reminderWhatsapp').onclick=()=>whatsapp(reminderText('request',clean($('reminderNote').value)));
+$('reminderSend').onclick=async()=>{
+  if(!state.user)return;
+  const to=$('reminderRecipient').value;
+  if(to===state.user.uid)return message('reminderMessage','Alıcı olarak diğer aile üyesini seçin.');
+  const later=$('reminderMode').value==='later';let when=null;
+  if(later){const d=new Date($('reminderAt').value);if(!Number.isFinite(d.getTime())||d.getTime()<=Date.now())return message('reminderMessage','Gelecekte bir tarih ve saat seçin.');when=Timestamp.fromDate(d)}
+  $('reminderSend').disabled=true;
+  try{await addDoc(REMINDERS,{type:'request',fromUid:state.user.uid,toUid:to,note:clean($('reminderNote').value),status:later?'scheduled':'requested',scheduledAt:when,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage',later?'Hatırlatma planlandı. Otomatik arka plan gönderimi için Functions gerekir.':'İstek AlGel içine kaydedildi. Push için Functions kurulumu gerekir.');}
+  catch(e){message('reminderMessage','Hatırlatma kaydedilemedi: '+(e.code||e.message))}finally{$('reminderSend').disabled=false}
+};
+let remindersFirst=true,reminderSeen=new Map();
+function subscribeReminders(){remindersFirst=true;reminderSeen.clear();const q=query(REMINDERS,orderBy('createdAt','desc'),limit(80));state.unsubs.push(onSnapshot(q,snap=>{
+  const all=snap.docs.map(d=>({id:d.id,...d.data()}));renderReminders(all);
+  if(!remindersFirst&&state.user&&document.visibilityState==='visible'){
+    for(const r of all){const previous=reminderSeen.get(r.id);const isForMe=r.toUid===state.user.uid&&r.status==='requested';const readyForMe=r.fromUid===state.user.uid&&r.status==='ready';if((isForMe||readyForMe)&&previous!==undefined&&previous!==r.status)notifyInApp(readyForMe?'Liste hazır!':'Alışveriş listesi istendi',r.note||'AlGel’i açarak kontrol edin.');
+    if((isForMe||readyForMe)&&previous===undefined&&r.createdAt?.toMillis?.()>Date.now()-45000)notifyInApp(readyForMe?'Liste hazır!':'Alışveriş listesi istendi',r.note||'AlGel’i kontrol edin.')}
+  }
+  remindersFirst=false;reminderSeen=new Map(all.map(r=>[r.id,r.status]));
+},e=>message('reminderMessage','İstekler okunamadı: '+(e.code||e.message))));}
+function notifyInApp(title,body){message('reminderMessage',title+' — '+body);if('Notification'in window&&Notification.permission==='granted')try{new Notification('AlGel · '+title,{body,icon:'./icon-192.png'})}catch(e){console.warn(e)}}
+function renderReminders(all){const root=$('reminderList');root.replaceChildren();const visible=all.filter(r=>r.fromUid===state.user.uid||r.toUid===state.user.uid);if(!visible.length){const p=document.createElement('p');p.className='muted';p.textContent='Henüz hatırlatma yok.';root.append(p);return}
+for(const r of visible){const wrap=document.createElement('div');wrap.className='reminder';const heading=document.createElement('strong');heading.textContent=(r.fromUid===state.user.uid?'Gönderilen → '+who(r.toUid):'Gelen ← '+who(r.fromUid));const info=document.createElement('small');const date=r.scheduledAt?.toDate?.();info.textContent=({scheduled:'⏳ Planlandı',requested:'🔔 Liste bekleniyor',ready:'✅ Liste hazır',cancelled:'İptal edildi'}[r.status]||r.status)+(date?' · '+date.toLocaleString('tr-TR'):'')+(r.note?' · '+r.note:'');const actions=document.createElement('div');actions.className='row';
+if(r.toUid===state.user.uid&&r.status==='requested'){const ready=document.createElement('button');ready.textContent='✓ Liste hazır';ready.onclick=async()=>{ready.disabled=true;try{await updateDoc(doc(REMINDERS,r.id),{status:'ready',readyBy:state.user.uid,readyAt:serverTimestamp(),updatedAt:serverTimestamp()})}catch(e){alert('Durum değiştirilemedi: '+e.code)}finally{ready.disabled=false}};actions.append(ready)}
+if(r.status==='requested'||r.status==='ready'){const wa=document.createElement('button');wa.className='subtle';wa.textContent='WhatsApp';wa.onclick=()=>whatsapp(reminderText(r.status==='ready'?'ready':'request',r.note));actions.append(wa)}
+if(r.fromUid===state.user.uid&&r.status==='scheduled'){const cancel=document.createElement('button');cancel.className='subtle';cancel.textContent='İptal et';cancel.onclick=()=>updateDoc(doc(REMINDERS,r.id),{status:'cancelled',updatedAt:serverTimestamp()}).catch(e=>alert(e.code));actions.append(cancel)}wrap.append(heading,info,actions);root.append(wrap)}
+}
+// Firebase Cloud Messaging: opt-in only. iOS requires installed Home Screen PWA.
+$('pushEnable').onclick=async()=>{if(!state.user)return;try{
+  if(!('serviceWorker'in navigator)||!('Notification'in window))throw Error('Bu cihaz/tarayıcı web push desteklemiyor.');
+  const vapid=clean($('vapidKey').value);if(!vapid)throw Error('Firebase Web Push VAPID anahtarını girin.');
+  if(!window.isSecureContext)throw Error('HTTPS bağlantısı gerekli.');
+  const permission=await Notification.requestPermission();if(permission!=='granted')throw Error('Bildirim izni verilmedi.');
+  const {getMessaging,isSupported,getToken}=await import('https://www.gstatic.com/firebasejs/13.3.0/firebase-messaging.js');
+  if(!await isSupported())throw Error('Bu cihaz Firebase Messaging desteklemiyor.');
+  const registration=await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+  const token=await getToken(getMessaging(app),{vapidKey:vapid,serviceWorkerRegistration:registration});if(!token)throw Error('FCM token alınamadı.');
+  const tokenId=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)).then(b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''));
+  await setDoc(doc(db,'shoppingLists','family','pushTokens',state.user.uid,'tokens',tokenId),{token,uid:state.user.uid,updatedAt:serverTimestamp()});
+  message('pushStatus','✓ Bu cihaz için push kaydı oluşturuldu. Sunucu Functions kurulumuyla bildirimler gönderilebilir.');
+}catch(e){message('pushStatus','Push etkinleştirilemedi: '+(e.code||e.message))}};
