@@ -1,6 +1,6 @@
 <!doctype html>
-<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#087e73"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="AlGel"><title>AlGel v2.7 | ASEM Medya</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png"><link rel="stylesheet" href="./style.css"></head>
-<body><header><div class="wrap top"><div><div class="brand">🛍️ AlGel <span class="version">v2.7</span></div><small>Birlikte planla, kolayca alışveriş yap.</small></div><button id="themeBtn" class="round" title="Koyu modu değiştir">◐</button></div></header>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#087e73"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="AlGel"><title>AlGel v2.8 | ASEM Medya</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png"><link rel="stylesheet" href="./style.css"></head>
+<body><header><div class="wrap top"><div><div class="brand">🛍️ AlGel <span class="version">v2.8</span></div><small>Birlikte planla, kolayca alışveriş yap.</small></div><button id="themeBtn" class="round" title="Koyu modu değiştir">◐</button></div></header>
 <main class="wrap"><section id="loginView" class="panel"><h2>Hoş geldin 👋</h2><p class="muted">Aile hesabınla giriş yap.</p><form id="loginForm"><label>E-posta<input id="email" type="email" autocomplete="username" required></label><label>Şifre<input id="password" type="password" autocomplete="current-password" required></label><button class="full">Giriş yap</button></form><p id="loginError" class="error" role="alert"></p></section>
 <section id="appView" hidden><div class="panel account"><div><strong id="userLabel"></strong><div id="syncStatus" class="muted">Bağlanıyor…</div></div><button id="logout" class="subtle">Çıkış</button></div>
 <div class="panel"><div class="row"><label class="grow">Alışveriş listesi<select id="listSelect"></select></label><button id="newListBtn" class="subtle" title="Yeni liste">+ Liste</button></div><div id="listInfo" class="muted"></div></div>
@@ -10,7 +10,7 @@
 <p class="muted">Liste iste: Karşı taraftan alışveriş listesi hazırlamasını iste. Liste gönder: Hazırladığın listeyi WhatsApp ile paylaş.</p>
 <label>Not (isteğe bağlı)<input id="reminderNote" maxlength="200" placeholder="Alışveriş listesini hazırlar mısın?"></label>
 <div class="row"><button id="reminderSend" class="grow">📩 Liste iste</button><button id="reminderShare" class="grow subtle">📤 Liste gönder</button></div>
-<p id="reminderMessage" class="muted" role="status"></p><h3>Gelen ve gönderilen istekler</h3><div id="reminderList"></div>
+<p id="reminderMessage" class="muted" role="status"></p><h3>Bekleyen liste istekleri</h3><div id="reminderList"></div>
 <p class="muted">Liste isteği veya yanıt kaydedildikten sonra ilgili isteğin WhatsApp düğmesine basın. WhatsApp doğrudan açılır; alıcıyı seçip hazır mesajı gönderin.</p>
 </div>
 
