@@ -57,7 +57,13 @@ const who=uid=>uid===AH?'Ahmet':uid===SA?'Saziye':'Aile üyesi';
 const appLink='https://ahmetyildirim-tr.github.io/AlGel/';
 function listMessage(){const items=state.items.filter(i=>!i.done);return '🛍️ AlGel alışveriş listesi\n'+(items.length?items.map(i=>'• '+i.name+(i.quantity?' — '+i.quantity+' '+(i.unit||'adet'):'')).join('\n'):'Liste şu anda boş.')+'\n\n'+appLink}
 const reminderText=(type,note)=>type==='ready'?`🛍️ İstediğin liste hazır!\n${listMessage()}`:`🛍️ AlGel: Bana alışveriş listesi hazırlar mısın? ${note||''}\n${appLink}`;
-function whatsapp(text){window.location.href='https://wa.me/?text='+encodeURIComponent(text)}
+async function whatsapp(text){
+ // iOS Safari and installed PWAs reliably support the native share sheet
+ // when invoked directly by a tap; the user chooses WhatsApp and recipient.
+ if(navigator.share){try{await navigator.share({text});return}catch(e){if(e.name==='AbortError')return;console.warn('Share unavailable',e)}}
+ try{await navigator.clipboard.writeText(text);message('reminderMessage','Mesaj kopyalandı. WhatsApp açılınca konuşmaya yapıştırın.')}catch(e){message('reminderMessage','WhatsApp mesajı açılamadı; aşağıdaki yeniden gönder düğmesini kullanın.')}
+ window.location.href='whatsapp://send?text='+encodeURIComponent(text);
+}
 
 
 $('reminderSend').onclick=async()=>{
@@ -65,7 +71,7 @@ $('reminderSend').onclick=async()=>{
  const to=state.user.uid===AH?SA:AH;
  const note=clean($('reminderNote').value);
  $('reminderSend').disabled=true;
- try{await addDoc(REMINDERS,{type:'request',kind:'prepare',fromUid:state.user.uid,toUid:to,note,status:'requested',scheduledAt:null,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage','Liste isteği kaydedildi. WhatsApp açılıyor.');whatsapp(reminderText('request',note))}
+ try{await addDoc(REMINDERS,{type:'request',kind:'prepare',fromUid:state.user.uid,toUid:to,note,status:'requested',scheduledAt:null,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage','Liste isteği kaydedildi. İsteğin altındaki WhatsApp ile gönder düğmesine basın.')}
  catch(e){message('reminderMessage','İstek kaydedilemedi: '+(e.code||e.message))}
  finally{$('reminderSend').disabled=false}
 };
@@ -82,7 +88,7 @@ function subscribeReminders(){remindersFirst=true;reminderSeen.clear();const q=q
 function notifyInApp(title,body){message('reminderMessage',title+' — '+body);if('Notification'in window&&Notification.permission==='granted')try{new Notification('AlGel · '+title,{body,icon:'./icon-192.png'})}catch(e){console.warn(e)}}
 function renderReminders(all){const root=$('reminderList');root.replaceChildren();const visible=all.filter(r=>r.fromUid===state.user.uid||r.toUid===state.user.uid);if(!visible.length){const p=document.createElement('p');p.className='muted';p.textContent='Henüz hatırlatma yok.';root.append(p);return}
 for(const r of visible){const wrap=document.createElement('div');wrap.className='reminder';const heading=document.createElement('strong');heading.textContent=(r.fromUid===state.user.uid?'Gönderilen → '+who(r.toUid):'Gelen ← '+who(r.fromUid));const info=document.createElement('small');const kind=r.kind||'prepare';const date=r.scheduledAt?.toDate?.();info.textContent=({scheduled:'⏳ Planlandı',requested:kind==='buy'?'🛒 Alışveriş isteği':'🔔 Liste oluşturma isteği',ready:kind==='buy'?'✅ Alışveriş kabul edildi':'✅ Liste hazır',cancelled:'İptal edildi'}[r.status]||r.status)+(date?' · '+date.toLocaleString('tr-TR'):'')+(r.note?' · '+r.note:'');const actions=document.createElement('div');actions.className='row';
-if(r.toUid===state.user.uid&&r.status==='requested'){const ready=document.createElement('button');ready.textContent='📤 Liste gönder';ready.onclick=async()=>{ready.disabled=true;try{await updateDoc(doc(REMINDERS,r.id),{status:'ready',readyBy:state.user.uid,readyAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage','Yanıt kaydedildi. WhatsApp açılıyor.');whatsapp(reminderText('ready',r.note))}catch(e){alert('Durum değiştirilemedi: '+e.code)}finally{ready.disabled=false}};actions.append(ready)}
+if(r.toUid===state.user.uid&&r.status==='requested'){const ready=document.createElement('button');ready.textContent='📤 Liste gönder';ready.onclick=async()=>{ready.disabled=true;try{await updateDoc(doc(REMINDERS,r.id),{status:'ready',readyBy:state.user.uid,readyAt:serverTimestamp(),updatedAt:serverTimestamp()});message('reminderMessage','Yanıt kaydedildi. İsteğin altındaki WhatsApp ile gönder düğmesine basın.')}catch(e){alert('Durum değiştirilemedi: '+e.code)}finally{ready.disabled=false}};actions.append(ready)}
 if((r.status==='requested'&&r.fromUid===state.user.uid)||(r.status==='ready'&&r.toUid===state.user.uid)){const wa=document.createElement('button');wa.className='subtle';wa.textContent=r.status==='ready'?'Listeyi WhatsApp ile gönder':'İsteği WhatsApp ile gönder';wa.onclick=()=>whatsapp(reminderText(r.status==='ready'?'ready':'request',r.note));actions.append(wa)}
 if(r.fromUid===state.user.uid&&r.status==='scheduled'){const cancel=document.createElement('button');cancel.className='subtle';cancel.textContent='İptal et';cancel.onclick=()=>updateDoc(doc(REMINDERS,r.id),{status:'cancelled',updatedAt:serverTimestamp()}).catch(e=>alert(e.code));actions.append(cancel)}wrap.append(heading,info,actions);root.append(wrap)}
 }
