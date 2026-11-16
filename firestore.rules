@@ -24,6 +24,25 @@ service cloud.firestore {
         allow list: if isOwner();
         allow create, update, delete: if isOwner();
       }
+      // AlGel v2.3 reminders; publish rules separately in Firebase Console.
+      match /reminders/{reminderId} {
+        allow read: if isMember();
+        allow create: if isMember()
+          && request.resource.data.fromUid == request.auth.uid
+          && request.resource.data.toUid in ['S0c4ZBH285duqGh0U5gA5tVVweY2','69XsPeLgc9hlUH6UMgZMUxMv9up2']
+          && request.resource.data.toUid != request.auth.uid
+          && request.resource.data.type == 'request'
+          && request.resource.data.status == 'requested'
+          && request.resource.data.note is string
+          && request.resource.data.note.size() <= 200;
+        allow update: if isMember()
+          && resource.data.toUid == request.auth.uid
+          && resource.data.status == 'requested'
+          && request.resource.data.status == 'ready'
+          && request.resource.data.readyBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','readyBy','readyAt','updatedAt']);
+        allow delete: if false;
+      }
       // Ek listeler ve bu listelerin ürünleri.
       match /listMeta/{listId} {
         allow read, create, update, delete: if isMember();
