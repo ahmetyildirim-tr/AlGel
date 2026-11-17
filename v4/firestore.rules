@@ -19,7 +19,7 @@ service cloud.firestore {
     && inviteAfter(i).data.usedBy == uid;
   }
   match /users/{uid} {
-   allow get: if self(uid) || auth();
+   allow get: if self(uid);
    allow list: if false;
    allow create: if self(uid) && request.resource.data.username is string && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60 && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
    allow update: if self(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username','displayName','updatedAt']) && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60 && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
