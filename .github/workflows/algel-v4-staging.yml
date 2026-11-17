@@ -1,0 +1,46 @@
+name: AlGel v4 staging preview
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    environment: algel-v4-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: algel-v4-development
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify required configuration
+        env:
+          STAGING_PROJECT_ID: ${{ vars.FIREBASE_STAGING_PROJECT_ID }}
+          STAGING_WEB_CONFIG: ${{ secrets.FIREBASE_STAGING_WEB_CONFIG }}
+          STAGING_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$STAGING_PROJECT_ID" || { echo 'Missing FIREBASE_STAGING_PROJECT_ID'; exit 1; }
+          test -n "$STAGING_WEB_CONFIG" || { echo 'Missing FIREBASE_STAGING_WEB_CONFIG'; exit 1; }
+          test -n "$STAGING_SERVICE_ACCOUNT" || { echo 'Missing FIREBASE_STAGING_SERVICE_ACCOUNT'; exit 1; }
+      - name: Assemble isolated hosting directory
+        env:
+          STAGING_PROJECT_ID: ${{ vars.FIREBASE_STAGING_PROJECT_ID }}
+          STAGING_WEB_CONFIG: ${{ secrets.FIREBASE_STAGING_WEB_CONFIG }}
+        run: |
+          mkdir -p dist/v4
+          cp style.css dist/style.css
+          cp v4/index.html v4/app.js dist/v4/
+          node v4/tools/build-staging.mjs
+      - name: Authenticate Firebase CLI
+        env:
+          STAGING_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_STAGING_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$STAGING_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-staging.json"
+          chmod 600 "$RUNNER_TEMP/firebase-staging.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-staging.json" >> "$GITHUB_ENV"
+      - name: Deploy hosting preview only
+        env:
+          STAGING_PROJECT_ID: ${{ vars.FIREBASE_STAGING_PROJECT_ID }}
+        run: |
+          npx --yes firebase-tools@14 hosting:channel:deploy algel-v4 --project "$STAGING_PROJECT_ID" --expires 7d --config v4/firebase.staging.json --non-interactive
