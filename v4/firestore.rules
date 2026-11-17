@@ -54,7 +54,7 @@ service cloud.firestore {
    }
    match /lists/{listId} {
     allow read: if member(familyId);
-    allow create: if member(familyId) && request.resource.data.name is string && request.resource.data.name.size() <= 60 && request.resource.data.createdBy == request.auth.uid;
+    allow create: if (member(familyId) || (verified() && !exists(/databases/$(database)/documents/families/$(familyId)) && getAfter(/databases/$(database)/documents/families/$(familyId)).data.createdBy == request.auth.uid && getAfter(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role == 'admin')) && request.resource.data.name is string && request.resource.data.name.size() <= 60 && request.resource.data.createdBy == request.auth.uid;
     allow update,delete: if member(familyId);
     match /items/{itemId} {
      allow read: if member(familyId);
