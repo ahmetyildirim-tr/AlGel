@@ -11,3 +11,6 @@
 
 /* v2.9 catalog management */
 .catalog-row .catalog-action{padding:7px 8px;font-size:11px;white-space:nowrap}.catalog-row .danger{border:1px solid var(--line)}#catalogManage{font-size:12px;padding:9px 12px;margin:4px 0}#catalogProducts .catalog-row:has(.catalog-action) strong{font-size:13px}
+
+/* v3.0 remember me */
+.remember-option{display:flex;align-items:center;gap:9px;margin:0 0 15px;cursor:pointer}.remember-option input[type=checkbox]{width:19px;height:19px;accent-color:var(--primary);margin:0;flex:none}
