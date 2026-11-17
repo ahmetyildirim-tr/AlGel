@@ -22,3 +22,28 @@ This branch is a **non-production prototype**. The existing AlGel 3.0 site and F
 
 ## Development safety
 Do not replace the root `firestore.rules` with the v4 rules. Doing so could remove v3 access and break the current production app. Do not merge this PR into main until the release checklist is complete.
+
+## Latest work
+- Administrators can promote an existing member to administrator with a two-document atomic write. A promotion is not an exclusive ownership transfer: the original administrator retains the role.
+- Administrators can remove another member with synchronized membership-index deletion.
+- Catalog products can be renamed.
+- Family selector now prioritizes the explicitly saved selection.
+
+## Manual security test matrix (must run in a staging Firebase project)
+| Scenario | Expected |
+| --- | --- |
+| Unauthenticated user reads family | Denied |
+| Member A reads unrelated family B | Denied |
+| Member A edits family B list | Denied |
+| Member A self-promotes to admin | Denied |
+| Admin A promotes member B with both records updated | Allowed |
+| Admin A updates only B's membership role | Denied |
+| Admin A removes B and their user index atomically | Allowed |
+| Removed B tries to read the former family | Denied |
+| Invitation link is used by a different email | Denied |
+| Expired invitation or reused invitation | Denied |
+| User attempts to claim existing username | Denied |
+| New user creates first family after email verification | Allowed |
+| Existing AlGel 3.0 users can still access legacy lists | Must remain working in production |
+
+**No tests in this matrix have been executed against Firebase yet.** Rules must be validated in the Firebase emulator before production use. In particular, validate cross-document `getAfter` checks and the Firestore rules access-call budget. The current implementation also lacks a robust server-side invitation acceptance endpoint, migration tooling, and a safe production deployment procedure.
