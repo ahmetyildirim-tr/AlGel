@@ -71,3 +71,10 @@ The credentials file must remain outside GitHub and must never be committed. **T
 
 ## Additional preview UX
 Newly created families get a default shopping list in the same atomic batch. Invitation creators can open WhatsApp directly from the generated invitation link. Verified users can refresh email verification status and retry pending invitation acceptance without logging out.
+
+## Current implementation update
+- Shopping-list items support renaming and quantity editing; numeric quantities must be positive and finite.
+- Family membership documents now carry a display-name snapshot for friendly member and reminder labels. This snapshot is not automatically synchronized after profile edits yet.
+- Switching account or family clears stale local UI data before new listeners populate it.
+- Firestore draft rules restrict stale membership-index reads and require membership-index deletion only when the underlying membership has been removed.
+- Firebase emulator testing remains outstanding. **Do not treat these source-level checks as proof of deployed security.**
