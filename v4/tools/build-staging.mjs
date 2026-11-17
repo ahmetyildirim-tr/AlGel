@@ -1,0 +1,13 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const projectId = process.env.STAGING_PROJECT_ID;
+const raw = process.env.STAGING_WEB_CONFIG;
+assert.ok(projectId && raw, 'Missing staging project ID or public web configuration');
+assert.notEqual(projectId, 'asem-algel', 'Production project forbidden');
+const config = JSON.parse(raw);
+assert.equal(config.projectId, projectId, 'Project ID mismatch');
+assert.ok(config.apiKey && config.authDomain && config.appId, 'Incomplete Firebase web config');
+mkdirSync('dist/v4', { recursive: true });
+writeFileSync('dist/v4/config.js', 'window.ALGEL_V4_FIREBASE = '+JSON.stringify(config)+';\n');
+writeFileSync('dist/index.html','<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=./v4/"><title>AlGel v4 test</title><a href="./v4/">AlGel v4 test</a>');
+console.log('Staging assets prepared for '+projectId);
