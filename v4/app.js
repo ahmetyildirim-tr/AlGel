@@ -1,7 +1,16 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js';
 import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,setPersistence,browserLocalPersistence,browserSessionPersistence,sendPasswordResetEmail,sendEmailVerification,verifyBeforeUpdateEmail} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js';
 import {getFirestore,doc,getDoc,setDoc,updateDoc,collection,addDoc,deleteDoc,onSnapshot,runTransaction,writeBatch,serverTimestamp,query,where,getDocs,Timestamp} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
-const config={apiKey:'AIzaSyClAjzLsBmIaISpzVKvS_tLQQGSF_8ALGg',authDomain:'asem-algel.firebaseapp.com',projectId:'asem-algel',storageBucket:'asem-algel.firebasestorage.app',messagingSenderId:'273464507861',appId:'1:273464507861:web:6bbf2068f69dba5466d15c'};
+// Staging-only: configure window.ALGEL_V4_FIREBASE in v4/config.js before use.
+const config=window.ALGEL_V4_FIREBASE;
+if(!config?.apiKey||!config?.projectId||config.projectId==='asem-algel'){
+ document.body.replaceChildren();
+ const panel=document.createElement('main');panel.className='v4 panel';
+ const title=document.createElement('h2');title.textContent='AlGel 4.0 · Test ortamı bekleniyor';
+ const detail=document.createElement('p');detail.textContent='Bu geliştirme sürümü güvenlik amacıyla canlı Firebase projesine bağlanmaz. Ayrı bir Firebase test projesinin ayarları v4/config.js dosyasına girilmelidir.';
+ panel.append(title,detail);document.body.append(panel);
+ throw new Error('AlGel 4.0 requires a separate staging Firebase project.');
+};
 const app=initializeApp(config),auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
 const state={user:null,profile:null,family:null,list:'',families:[],members:[],items:[],catalog:[],unsubs:[],familyUnsubs:[],listUnsub:null};
 const norm=s=>(s||'').trim(),username=s=>norm(s).toLowerCase(),notify=s=>{$('notice').textContent=s};
