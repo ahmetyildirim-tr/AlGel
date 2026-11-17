@@ -58,3 +58,16 @@ Do not replace the root `firestore.rules` with the v4 rules. Doing so could remo
 
 ## Legacy data migration inventory (read-only until staging approved)
 Source document: `shoppingLists/family` (catalog and hiddenCatalog). Source collections: `shoppingLists/family/items`, `shoppingLists/family/listMeta/{listId}/items`, `shoppingLists/family/reminders`, and `shoppingLists/family/members`. Preserve all IDs, createdBy UIDs, quantities, units, timestamps, completion states and custom lists where possible. Target: `families/{newFamilyId}` with separate `members`, `lists/{listId}/items`, `catalog`, and `reminders`. Use an authenticated, audited server-side migration, a Firestore export/backup, item-count reconciliation, and dry-run before any write to production. **No migration has run.**
+
+## Read-only legacy migration inventory utility
+`v4/tools/legacy-inventory.mjs` provides a count-only inventory of the old Firestore structure. It does **not** copy, modify, delete or print shopping items or emails. It reports document counts, missing item names, catalog duplicates, and list IDs/counts. Run only with explicit credentials in a trusted environment:
+
+```sh
+npm install --no-save firebase-admin
+GOOGLE_APPLICATION_CREDENTIALS=/secure/credentials.json ALGEL_SOURCE_PROJECT=asem-algel node v4/tools/legacy-inventory.mjs
+```
+
+The credentials file must remain outside GitHub and must never be committed. **The script has been committed but not executed against production.** The migration cannot be declared complete based on inventory counts alone.
+
+## Additional preview UX
+Newly created families get a default shopping list in the same atomic batch. Invitation creators can open WhatsApp directly from the generated invitation link. Verified users can refresh email verification status and retry pending invitation acceptance without logging out.
