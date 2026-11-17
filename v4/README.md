@@ -78,3 +78,9 @@ Newly created families get a default shopping list in the same atomic batch. Inv
 - Switching account or family clears stale local UI data before new listeners populate it.
 - Firestore draft rules restrict stale membership-index reads and require membership-index deletion only when the underlying membership has been removed.
 - Firebase emulator testing remains outstanding. **Do not treat these source-level checks as proof of deployed security.**
+
+## CI pre-release gate
+`.github/workflows/algel-v4-checks.yml` runs Node 22 syntax checks and `v4/tools/static-check.mjs` on pull requests affecting v4. It checks HTML element references, the disabled staging configuration, the production project guard, and read-only inventory code. This is **not** a substitute for Firestore emulator integration tests or a verified production backup.
+
+## Production activation blockers
+The repository's GitHub connector can edit code but cannot create Firebase projects, enable Authentication, deploy Firestore rules, grant hosting domain access, or inspect live Firestore data. Until those steps are performed with authorized Firebase access, no claim of a completed launch is valid. Keep PR #10 in draft and preserve v3 on main. Before release, also refresh ID tokens after email verification, test invite replay and authorization, and validate migration reconciliation.
