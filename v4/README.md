@@ -84,3 +84,15 @@ Newly created families get a default shopping list in the same atomic batch. Inv
 
 ## Production activation blockers
 The repository's GitHub connector can edit code but cannot create Firebase projects, enable Authentication, deploy Firestore rules, grant hosting domain access, or inspect live Firestore data. Until those steps are performed with authorized Firebase access, no claim of a completed launch is valid. Keep PR #10 in draft and preserve v3 on main. Before release, also refresh ID tokens after email verification, test invite replay and authorization, and validate migration reconciliation.
+
+## Alternative publication path without ChatGPT Firebase plugin
+A manually triggered GitHub Actions workflow is available at `.github/workflows/algel-v4-staging.yml`. It builds a temporary `dist/` folder and deploys **only Firebase Hosting** to a seven-day preview channel in a **separate staging project**. It never deploys Firestore rules, never touches the existing `asem-algel` project, and does not merge the draft pull request.
+
+One-time setup in Firebase Console and GitHub (must be done by the account owner):
+1. Create a new Firebase project, e.g. `asem-algel-staging`, and enable Hosting, Firestore, and Email/Password Authentication.
+2. Add the preview domain to Firebase Authentication authorized domains after its first deployment. Deploy `v4/firestore.rules` **only to the staging project** using Firebase Console; then validate the documented security matrix. Hosting alone will not make the app usable without these steps.
+3. In GitHub repository **Settings → Environments**, create environment `algel-v4-staging`. Configure variable `FIREBASE_STAGING_PROJECT_ID` with the new project ID, secret `FIREBASE_STAGING_WEB_CONFIG` with the Firebase **public web configuration JSON**, and secret `FIREBASE_STAGING_SERVICE_ACCOUNT` with a staging-only service-account JSON having the minimum Hosting deployment permissions. Never commit these secrets. Restrict environment deployments to the staging branch and require approval where supported.
+4. After this workflow file is present on the repository's default branch, run **Actions → AlGel v4 staging preview → Run workflow** on the development branch. GitHub may not display manual workflows until the workflow file exists on the default branch; do **not** merge the unfinished v4 pull request solely to enable it. Instead create a separate, reviewed workflow-only PR to add the workflow to main.
+5. Preview URL is printed in the workflow log. Verify two test accounts, membership isolation, and shopping operations before planning a production cutover.
+
+**Production deployment is deliberately not automated**: no verified backup, data migration, security-rule integration test, or rollback procedure exists yet.
