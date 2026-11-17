@@ -26,9 +26,9 @@ service cloud.firestore {
    allow delete: if false;
    match /families/{familyId} {
     allow read: if self(uid);
-    allow create: if self(uid) && existsAfter(/databases/$(database)/documents/families/$(familyId)/members/$(uid)) && request.resource.data.role == getAfter(/databases/$(database)/documents/families/$(familyId)/members/$(uid)).data.role;
+    allow create: if self(uid) && existsAfter(/databases/$(database)/documents/families/$(familyId)/members/$(uid)) && request.resource.data.role == getAfter(/databases/$(database)/documents/families/$(familyId)/members/$(uid)).data.role && request.resource.data.keys().hasOnly(['name','role','joinedAt']);
     allow update: if (self(uid) && member(familyId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])) || (admin(familyId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']) && resource.data.role == 'member' && request.resource.data.role == 'admin' && getAfter(/databases/$(database)/documents/families/$(familyId)/members/$(uid)).data.role == 'admin');
-    allow delete: if self(uid) || (admin(familyId) && !existsAfter(/databases/$(database)/documents/families/$(familyId)/members/$(uid)));
+    allow delete: if (self(uid) && !existsAfter(/databases/$(database)/documents/families/$(familyId)/members/$(uid))) || (admin(familyId) && !existsAfter(/databases/$(database)/documents/families/$(familyId)/members/$(uid)));
    }
   }
   match /usernames/{handle} {
@@ -39,7 +39,7 @@ service cloud.firestore {
    allow update: if false;
   }
   match /families/{familyId} {
-   allow get: if member(familyId) || (verified() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/families/$(familyId)));
+   allow get: if member(familyId);
    allow list: if false;
    allow create: if verified() && request.resource.data.createdBy == request.auth.uid && request.resource.data.name is string && request.resource.data.name.size() <= 60 && request.resource.data.status == 'active' && getAfter(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role == 'admin';
    allow update: if admin(familyId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','updatedAt']) && request.resource.data.name is string && request.resource.data.name.size() <= 60;
@@ -47,8 +47,8 @@ service cloud.firestore {
    match /members/{uid} {
     allow get: if self(uid) || member(familyId);
     allow list: if member(familyId);
-    allow create: if (verified() && self(uid) && request.resource.data.role == 'admin' && getAfter(/databases/$(database)/documents/families/$(familyId)).data.createdBy == uid && !exists(/databases/$(database)/documents/families/$(familyId)))
-      || (request.resource.data.role == 'member' && validRedeem(familyId,uid,request.resource.data.inviteId));
+    allow create: if (verified() && self(uid) && request.resource.data.role == 'admin' && request.resource.data.uid == uid && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60 && getAfter(/databases/$(database)/documents/families/$(familyId)).data.createdBy == uid && !exists(/databases/$(database)/documents/families/$(familyId)))
+      || (request.resource.data.role == 'member' && request.resource.data.uid == uid && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60 && validRedeem(familyId,uid,request.resource.data.inviteId));
     allow update: if admin(familyId) && resource.data.role == 'member' && request.resource.data.role == 'admin' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']) && getAfter(/databases/$(database)/documents/users/$(uid)/families/$(familyId)).data.role == 'admin';
     allow delete: if admin(familyId) && uid != request.auth.uid && !existsAfter(/databases/$(database)/documents/users/$(uid)/families/$(familyId));
    }
